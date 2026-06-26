@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GeoLinkage — síntese de curva de 4 barras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#0A1418; --panel:#0F1F26; --screen:#0C1A20;
+            --line:#1E3640; --ink:#DCE8E6; --muted:#6E888C;
+            --trace:#FF9A3C; --ghost:#4FB7C4; --steel:#8AA1A8;
+            --danger:#E5544B; --ok:#4FD493; --amber:#FFC65C;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; background: var(--bg); color: var(--ink);
+            font-family: "IBM Plex Sans", system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-image: radial-gradient(1200px 600px at 70% -10%, #122a33 0%, var(--bg) 60%);
+            min-height: 100vh;
+        }
+        .bench { max-width: 1180px; margin: 0 auto; padding: 36px 24px 56px; }
+
+        .eyebrow {
+            font-family: "IBM Plex Mono", monospace; font-weight: 600;
+            font-size: 12px; letter-spacing: 0.22em; color: var(--ghost);
+            text-transform: uppercase;
+        }
+        .wordmark {
+            font-family: "Space Grotesk", sans-serif; font-weight: 700;
+            font-size: clamp(34px, 6vw, 58px); line-height: 1; margin: 10px 0 0;
+            letter-spacing: -0.01em;
+        }
+        .wordmark span { color: var(--trace); }
+        .tagline { color: var(--muted); margin: 12px 0 28px; max-width: 46ch; font-size: 15px; }
+
+        .console { display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 22px; align-items: start; }
+        @media (max-width: 880px) { .console { grid-template-columns: 1fr; } }
+
+        .screen-frame {
+            background: var(--screen); border: 1px solid var(--line); border-radius: 10px;
+            padding: 10px; box-shadow: inset 0 0 60px rgba(0,0,0,0.45), 0 18px 40px rgba(0,0,0,0.35);
+        }
+        #tela { display: block; width: 100%; height: auto; border-radius: 4px; }
+
+        .panel { display: flex; flex-direction: column; gap: 20px; }
+
+        .channel { border-left: 2px solid var(--trace); padding-left: 12px; }
+        .chan-code { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.16em; color: var(--muted); display: block; }
+        .chan-name { font-family: "Space Grotesk", sans-serif; font-weight: 500; font-size: 19px; }
+
+        .meter-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+        .meter-label { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+        .meter-val { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 14px; color: var(--ink); }
+        .meter-track { height: 8px; background: #0c2027; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+        .meter-fill { height: 100%; width: 0%; background: var(--amber); transition: width .12s linear, background .2s; }
+        .meter-fill.locked { background: var(--ok); }
+        .meter-fill.danger { background: var(--danger); }
+        .meter-status { margin-top: 9px; min-height: 20px; font-size: 13.5px; color: var(--muted); }
+        .meter-status.ok { color: var(--ok); }
+        .meter-status.warn { color: var(--danger); }
+
+        .dials { display: flex; flex-direction: column; gap: 13px; }
+        .dial { display: grid; grid-template-columns: 92px 1fr 38px; align-items: center; gap: 12px; }
+        .dial label { font-size: 13px; color: var(--ink); }
+        .dial output { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--amber); text-align: right; }
+
+        input[type=range] {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+            background: var(--line); border-radius: 2px; outline: none; margin: 0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: var(--amber); border: 2px solid #14242a; cursor: pointer;
+            box-shadow: 0 0 0 3px rgba(255,198,92,0.12);
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 14px; height: 14px; border-radius: 50%; background: var(--amber);
+            border: 2px solid #14242a; cursor: pointer;
+        }
+        input[type=range]::-moz-range-track { height: 4px; background: var(--line); border-radius: 2px; }
+        input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(255,198,92,0.35); }
+
+        .cta {
+            font-family: "Space Grotesk", sans-serif; font-weight: 500; font-size: 15px;
+            padding: 11px 18px; border: none; border-radius: 7px; cursor: pointer;
+            background: var(--ok); color: #08130d; letter-spacing: 0.01em;
+        }
+        .cta:hover { filter: brightness(1.08); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .meter-fill { transition: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bench">
+        <header>
+            <div class="eyebrow">Síntese de curva · mecanismo de 4 barras</div>
+            <h1 class="wordmark">Geo<span>Linkage</span></h1>
+            <p class="tagline">Calibre os quatro elos até o seu traço cobrir o fantasma tracejado. Pequenas mudanças de comprimento mudam a curva inteira.</p>
+        </header>
+
+        <main class="console">
+            <section class="screen-frame">
+                <canvas id="tela" width="800" height="600"></canvas>
+            </section>
+
+            <aside class="panel">
+                <div class="channel">
+                    <span class="chan-code" id="faseCodigo">FASE 01 / 03</span>
+                    <span class="chan-name" id="fase">—</span>
+                </div>
+
+                <div class="meter">
+                    <div class="meter-head">
+                        <span class="meter-label">Encaixe</span>
+                        <span class="meter-val" id="distancia">— px</span>
+                    </div>
+                    <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
+                    <div class="meter-status" id="status"></div>
+                </div>
+
+                <div class="dials">
+                    <div class="dial">
+                        <label for="sManivela">Manivela</label>
+                        <input type="range" id="sManivela" min="20" max="150" value="80">
+                        <output id="vManivela">80</output>
+                    </div>
+                    <div class="dial">
+                        <label for="sAcoplador">Acoplador</label>
+                        <input type="range" id="sAcoplador" min="50" max="400" value="250">
+                        <output id="vAcoplador">250</output>
+                    </div>
+                    <div class="dial">
+                        <label for="sSeguidor">Seguidor</label>
+                        <input type="range" id="sSeguidor" min="50" max="400" value="200">
+                        <output id="vSeguidor">200</output>
+                    </div>
+                    <div class="dial">
+                        <label for="sAoLongo">Ponto · avanço</label>
+                        <input type="range" id="sAoLongo" min="-100" max="380" value="125">
+                        <output id="vAoLongo">125</output>
+                    </div>
+                    <div class="dial">
+                        <label for="sParaLado">Ponto · lateral</label>
+                        <input type="range" id="sParaLado" min="-200" max="200" value="80">
+                        <output id="vParaLado">80</output>
+                    </div>
+                </div>
+
+                <button id="proxima" class="cta" style="display:none">Próxima fase →</button>
+            </aside>
+        </main>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("tela");
+        const ctx = canvas.getContext("2d");
+        const statusEl    = document.getElementById("status");
+        const faseLabel   = document.getElementById("fase");
+        const faseCodigo  = document.getElementById("faseCodigo");
+        const distanciaEl = document.getElementById("distancia");
+        const meterFill   = document.getElementById("meterFill");
+        const proximaBtn  = document.getElementById("proxima");
+
+        const reduzMov = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        // paleta do canvas (espelha o CSS)
+        const COR = {
+            screen:"#0C1A20", grid:"rgba(120,170,180,0.06)", mark:"rgba(120,170,180,0.34)",
+            ground:"#3C545C", steel:"#8AA1A8", crank:"#E6EDEB", pivot:"#9DB2BA",
+            trace:"#FF9A3C", traceGlow:"rgba(255,154,60,0.55)", ghost:"rgba(79,183,196,0.6)",
+            danger:"rgba(229,84,75,0.16)", dangerLine:"rgba(229,84,75,0.85)",
+        };
+
+        let anguloGraus = 0;
+
+        const sManivela  = document.getElementById("sManivela");
+        const sAcoplador = document.getElementById("sAcoplador");
+        const sSeguidor  = document.getElementById("sSeguidor");
+        const sAoLongo   = document.getElementById("sAoLongo");
+        const sParaLado  = document.getElementById("sParaLado");
+        const sliders = [
+            [sManivela,"vManivela"],[sAcoplador,"vAcoplador"],[sSeguidor,"vSeguidor"],
+            [sAoLongo,"vAoLongo"],[sParaLado,"vParaLado"],
+        ];
+        for (const [slider, id] of sliders) {
+            slider.addEventListener("input", () => { document.getElementById(id).textContent = slider.value; });
+        }
+
+        // ===================== AS FASES =====================
+        const FASES = [
+            { nome:"Formato de feijão",
+              alvo:{ manivela:80, acoplador:200, seguidor:260, aoLongo:160, paraOLado:120 },
+              inicio:{ manivela:80, acoplador:250, seguidor:200, aoLongo:125, paraOLado:80 }, limite:15 },
+            { nome:"Asa fina",
+              alvo:{ manivela:60, acoplador:300, seguidor:300, aoLongo:100, paraOLado:-140 },
+              inicio:{ manivela:100, acoplador:200, seguidor:200, aoLongo:150, paraOLado:80 }, limite:15 },
+            { nome:"Desvie da zona proibida",
+              alvo:{ manivela:100, acoplador:180, seguidor:240, aoLongo:250, paraOLado:90 },
+              inicio:{ manivela:80, acoplador:250, seguidor:200, aoLongo:125, paraOLado:80 }, limite:15,
+              zona:{ x:480, y:400, r:35 } },
+        ];
+        let faseAtual = 0, fase = null, alvo = [];
+
+        // ---- cinemática pura ----
+        function acharB(ax, ay, ox, oy, b, c) {
+            const dx = ox-ax, dy = oy-ay, D = Math.sqrt(dx*dx+dy*dy);
+            if (D > b+c || D < Math.abs(b-c)) return null;
+            const aDist = (b*b-c*c+D*D)/(2*D), h = Math.sqrt(b*b-aDist*aDist);
+            const mx = ax+aDist*dx/D, my = ay+aDist*dy/D;
+            return { x: mx+h*dy/D, y: my-h*dx/D };
+        }
+        function gerarCurva(manivela, acoplador, seguidor, aoLongo, paraOLado) {
+            const pts = [];
+            for (let g = 0; g <= 360; g += 2) {
+                const ang = g*Math.PI/180;
+                const ax = 250 + manivela*Math.cos(ang), ay = 400 - manivela*Math.sin(ang);
+                const B = acharB(ax, ay, 550, 400, acoplador, seguidor);
+                if (!B) continue;
+                const ex = (B.x-ax)/acoplador, ey = (B.y-ay)/acoplador;
+                pts.push({ x: ax+aoLongo*ex+paraOLado*(-ey), y: ay+aoLongo*ey+paraOLado*ex });
+            }
+            return pts;
+        }
+        function distanciaMedia(A, B) {
+            let soma = 0;
+            for (const p of A) {
+                let melhor = Infinity;
+                for (const q of B) { const d=(p.x-q.x)**2+(p.y-q.y)**2; if (d<melhor) melhor=d; }
+                soma += Math.sqrt(melhor);
+            }
+            return soma / A.length;
+        }
+        function pontuar(A, B) {
+            if (A.length === 0 || B.length === 0) return Infinity;
+            return (distanciaMedia(A,B) + distanciaMedia(B,A)) / 2;
+        }
+        function desenharCurva(pts, cor, tracejada, largura) {
+            if (pts.length === 0) return;
+            ctx.setLineDash(tracejada ? [7,7] : []);
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.strokeStyle = cor; ctx.lineWidth = largura; ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        // papel-milimetrado + marcas de registro nos cantos
+        function desenharTela() {
+            ctx.fillStyle = COR.screen;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = COR.grid; ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+            for (let y = 0; y <= canvas.height; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+            ctx.strokeStyle = COR.mark; ctx.lineWidth = 1.5;
+            for (const [cx, cy] of [[24,24],[776,24],[24,576],[776,576]]) {
+                ctx.beginPath();
+                ctx.moveTo(cx-7, cy); ctx.lineTo(cx+7, cy);
+                ctx.moveTo(cx, cy-7); ctx.lineTo(cx, cy+7);
+                ctx.stroke();
+            }
+        }
+
+        function carregarFase() {
+            fase = FASES[faseAtual];
+            sManivela.value=fase.inicio.manivela; sAcoplador.value=fase.inicio.acoplador;
+            sSeguidor.value=fase.inicio.seguidor; sAoLongo.value=fase.inicio.aoLongo;
+            sParaLado.value=fase.inicio.paraOLado;
+            for (const [slider, id] of sliders) document.getElementById(id).textContent = slider.value;
+            alvo = gerarCurva(fase.alvo.manivela, fase.alvo.acoplador, fase.alvo.seguidor, fase.alvo.aoLongo, fase.alvo.paraOLado);
+            faseLabel.textContent = fase.nome;
+            faseCodigo.textContent = "FASE " + String(faseAtual+1).padStart(2,"0") + " / " + String(FASES.length).padStart(2,"0");
+            proximaBtn.style.display = "none";
+        }
+        proximaBtn.addEventListener("click", () => {
+            if (faseAtual < FASES.length - 1) { faseAtual++; carregarFase(); }
+        });
+
+        function desenhar() {
+            const manivela=+sManivela.value, acoplador=+sAcoplador.value, seguidor=+sSeguidor.value;
+            const aoLongo=+sAoLongo.value, paraOLado=+sParaLado.value;
+
+            desenharTela();
+
+            // trilho da base
+            ctx.beginPath(); ctx.moveTo(250,400); ctx.lineTo(550,400);
+            ctx.strokeStyle = COR.ground; ctx.lineWidth = 5; ctx.stroke();
+
+            // zona proibida
+            if (fase.zona) {
+                ctx.beginPath(); ctx.arc(fase.zona.x, fase.zona.y, fase.zona.r, 0, Math.PI*2);
+                ctx.fillStyle = COR.danger; ctx.fill();
+                ctx.setLineDash([5,5]); ctx.strokeStyle = COR.dangerLine; ctx.lineWidth = 2; ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // alvo fantasma (ciano tracejado) + meu traço (âmbar com brilho)
+            desenharCurva(alvo, COR.ghost, true, 1.5);
+            const minhaCurva = gerarCurva(manivela, acoplador, seguidor, aoLongo, paraOLado);
+            ctx.save();
+            ctx.shadowColor = COR.traceGlow; ctx.shadowBlur = 14;
+            desenharCurva(minhaCurva, COR.trace, false, 2.5);
+            ctx.restore();
+
+            // checa zona proibida
+            let dentroDaZona = false;
+            if (fase.zona) {
+                for (const p of minhaCurva) {
+                    if (Math.hypot(p.x-fase.zona.x, p.y-fase.zona.y) < fase.zona.r) { dentroDaZona = true; break; }
+                }
+            }
+
+            // pontuação + medidor de encaixe
+            const score = pontuar(minhaCurva, alvo);
+            const venceuAgora = isFinite(score) && score < fase.limite && !dentroDaZona;
+            const prox = isFinite(score) ? Math.max(0, Math.min(1, 1 - score/120)) : 0;
+
+            distanciaEl.textContent = isFinite(score) ? Math.round(score) + " px" : "— px";
+            meterFill.style.width = (prox*100).toFixed(0) + "%";
+            meterFill.classList.remove("locked","danger");
+            statusEl.classList.remove("ok","warn");
+
+            if (dentroDaZona) {
+                meterFill.classList.add("danger");
+                statusEl.classList.add("warn");
+                statusEl.textContent = "O traço está cruzando a zona proibida.";
+                proximaBtn.style.display = "none";
+            } else if (venceuAgora) {
+                meterFill.classList.add("locked");
+                statusEl.classList.add("ok");
+                if (faseAtual < FASES.length - 1) {
+                    statusEl.textContent = "Encaixe travado. Fase concluída.";
+                    proximaBtn.style.display = "inline-block";
+                } else {
+                    statusEl.textContent = "Todas as fases concluídas. 🏆";
+                    proximaBtn.style.display = "none";
+                }
+            } else {
+                statusEl.textContent = (isFinite(score) && score < 35) ? "Quase encaixando…" : "";
+                proximaBtn.style.display = "none";
+            }
+
+            // ===== mecanismo no ângulo atual =====
+            const ang = anguloGraus*Math.PI/180;
+            const ax = 250 + manivela*Math.cos(ang), ay = 400 - manivela*Math.sin(ang);
+            ctx.beginPath(); ctx.moveTo(250,400); ctx.lineTo(ax,ay);
+            ctx.strokeStyle = COR.crank; ctx.lineWidth = 4; ctx.stroke();
+
+            const B = acharB(ax, ay, 550, 400, acoplador, seguidor);
+            if (B) {
+                ctx.lineWidth = 4; ctx.strokeStyle = COR.steel;
+                ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(B.x,B.y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(550,400); ctx.lineTo(B.x,B.y); ctx.stroke();
+
+                const ex=(B.x-ax)/acoplador, ey=(B.y-ay)/acoplador;
+                const px = ax+aoLongo*ex+paraOLado*(-ey), py = ay+aoLongo*ey+paraOLado*ex;
+                ctx.lineWidth = 2; ctx.strokeStyle = COR.steel;
+                ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(px,py); ctx.moveTo(B.x,B.y); ctx.lineTo(px,py); ctx.stroke();
+                ctx.beginPath(); ctx.arc(B.x,B.y,5,0,Math.PI*2); ctx.fillStyle = COR.steel; ctx.fill();
+                ctx.save(); ctx.shadowColor = COR.traceGlow; ctx.shadowBlur = 12;
+                ctx.beginPath(); ctx.arc(px,py,6,0,Math.PI*2); ctx.fillStyle = COR.trace; ctx.fill();
+                ctx.restore();
+            }
+            ctx.beginPath(); ctx.arc(ax,ay,5,0,Math.PI*2); ctx.fillStyle = COR.crank; ctx.fill();
+
+            // pinos fixos (mira)
+            ctx.lineWidth = 2;
+            for (const pinoX of [250, 550]) {
+                ctx.strokeStyle = COR.pivot; ctx.fillStyle = COR.screen;
+                ctx.beginPath(); ctx.arc(pinoX,400,6,0,Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = COR.pivot;
+                ctx.beginPath(); ctx.arc(pinoX,400,1.5,0,Math.PI*2); ctx.fill();
+            }
+
+            anguloGraus += reduzMov ? 0.6 : 2;
+            requestAnimationFrame(desenhar);
+        }
+
+        carregarFase();
+        desenhar();
+    </script>
+</body>
+</html>
